@@ -289,7 +289,8 @@ for(const r of data.rooms){const m=matFor(r); const top=m==='concrete'?GRADE:0;
     box('ceiling',q[0],q[1],q[2],q[3],H,H+2,{faces:{bot:1},layer:'ceil'});}}
 // door thresholds (fills the floor gap inside each doorway)
 const doorSill=(o,m,top)=>{const t=o.o==='h'?[o.x0,o.y0+1,o.x1,o.y1-1]:[o.x0+1,o.y0,o.x1-1,o.y1];box(m,t[0],t[1],t[2],t[3],top-2,top,{faces:{top:1}})};
-for(const o of data.ops){if(o.kind==='door'||o.kind==='entry'){doorSill(o,'wood',0);floorAt(o.x0,o.y0,o.x1,o.y1,0)} if(o.kind==='garage') doorSill(o,'concrete',GRADE)}
+const sideFloors=o=>{const cx=(o.x0+o.x1)/2,cy=(o.y0+o.y1)/2,pts=o.o==='h'?[[cx,o.y0-6],[cx,o.y1+6]]:[[o.x0-6,cy],[o.x1+6,cy]];return pts.map(([x,y])=>{const i=gIdx(x,y);return i<0?GRADE:CG.floor[i]})};
+for(const o of data.ops){if(o.kind==='door'||o.kind==='entry'){const f=Math.max(...sideFloors(o));doorSill(o,f<-12?'concrete':'wood',f);floorAt(o.x0,o.y0,o.x1,o.y1,f)} if(o.kind==='garage') doorSill(o,'concrete',GRADE)}
 // baseboards on every interior wall face that meets a main-floor room
 function baseboards(r,ext,lv=0){const [x0,y0,x1,y1]=r, d=.6, hb=lv+4.5;
   const fl=(x,y)=>{const i=gIdx(x,y);return i<0?null:CG.floor[i]};
@@ -424,7 +425,7 @@ LAYER='bsmt'; CG=GB;
  for(let i=1;i<NR;i++){const x=ST.x0+(i-1)*run, t=-i*rise; box('wood',x,ST.y0,x+run+1,ST.y1,t-1.25,t); box('trim',x,ST.y0,x+.75,ST.y1,t,t+rise-1.25,{faces:{x0:1,x1:1,y0:1,y1:1}});
    for(const g of [G,GB]){CG=g; floorAt(x-.5,ST.y0,x+run,ST.y1,t)}}
  box('trim',ST.x1,ST.y0,ST.x1+.75,ST.y1,BF,BF+rise-1.25,{faces:{x0:1,x1:1,y0:1,y1:1}});
- CG=G; solid(357,ST.y0,ST.x1+40,ST.y1);
+ CG=G; floorAt(360.5,ST.y0,ST.x1+40,ST.y1,0); // closet over the lower stair is a normal floor at main level
  box('paint',ST.x0,276,ST.x1,ST.y0,BC,0,{faces:{x0:1,x1:1,y0:1,y1:1}}); box('paint',ST.x0,ST.y1,ST.x1,327,BC,0,{faces:{x0:1,x1:1,y0:1,y1:1}}); box('paint',ST.x0-3,ST.y0,ST.x0,ST.y1,BC-6,0,{faces:{x0:1,x1:1,y0:1,y1:1}});
  box('paint',357,ST.y0,ST.x1,ST.y1,-12,-10,{faces:{bot:1}}); box('paint',357,ST.y0,359,ST.y1,BC,-10,{faces:{x0:1,x1:1,y0:1,y1:1}});
   const L=Math.hypot(ST.x1-ST.x0,BF)*IN, rail=addMesh(new THREE.CylinderGeometry(.75*IN,.75*IN,L,10),'rod',(ST.x0+ST.x1)/2,BF/2+34,ST.y1-2.5,{rz:Math.atan2(ST.x1-ST.x0,-BF)});
@@ -530,7 +531,9 @@ const joyEnd=()=>{joy={x:0,y:0,id:null};joyK.style.transform=''}; joyEl.addEvent
 function joyMove(e){const r=joyEl.getBoundingClientRect();let x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2);const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}joy.x=x;joy.y=y;joyK.style.transform=`translate(${x*34}px,${y*34}px)`}
 
 // a step up of more than 10" blocks you, unless you've been stuck for a moment (then you can climb out)
-function blocked(x,y,floor,lim){const g=P.level==='B'?GB:G,rad=9;for(let k=0;k<9;k++){const a=k*Math.PI/4;const px=k===8?x:x+Math.cos(a)*rad,py=k===8?y:y+Math.sin(a)*rad;const i=gIdx(px,py);if(i<0)return true;if(g.block[i])return true;if(g.floor[i]<-500||g.floor[i]-floor>(k===8?lim:lim+8))return true}return false}
+// body = 10" radius: 16 points on the outer ring (gaps under 4", so a door jamb can't slip between them), 8 inside, plus the centre
+const RING=[[0,0]];for(let k=0;k<16;k++)RING.push([Math.cos(k*Math.PI/8)*10,Math.sin(k*Math.PI/8)*10]);for(let k=0;k<8;k++)RING.push([Math.cos(k*Math.PI/4+.39)*5,Math.sin(k*Math.PI/4+.39)*5]);
+function blocked(x,y,floor,lim){const g=P.level==='B'?GB:G;for(let k=0;k<RING.length;k++){const i=gIdx(x+RING[k][0],y+RING[k][1]);if(i<0)return true;if(g.block[i])return true;if(g.floor[i]<-500||g.floor[i]-floor>(k===0?lim:lim+8))return true}return false}
 function stepWalk(dt){
   let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y, s=(keys.KeyD?1:0)-(keys.KeyA?1:0)+joy.x;
   const turn=(keys.ArrowLeft?1:0)-(keys.ArrowRight?1:0); P.yaw+=turn*dt*1.8;

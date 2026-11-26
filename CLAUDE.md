@@ -87,7 +87,8 @@ A walk-through 3D model of the owner's house, viewable in a web browser on lapto
 ## Viewer (`site/index.html`)
 - Single page; three.js 0.170.0 + addons loaded from jsDelivr via importmap (allowed by the artifact CSP). Textures:
   wood + grass from three.js examples (placeholders); everything else procedural canvas textures.
-- Two collision/floor grids (`G` main, `GB` basement, 2" cells). Step-up limit 10" (look-ahead 18"); after 0.4 s stuck,
+- Two collision/floor grids (`G` main, `GB` basement, 2" cells). Walker = 10" radius checked at 16 outer + 8 inner points
+  (a 4" door jamb can't slip between them; camera near plane is ~4"). Step-up limit 10" (look-ahead 18"); after 0.4 s stuck,
   allows 40" so nobody gets trapped. Level switches at floor −64" on the stair.
 - Layers: main, ceil, roof, bsmt, bceil, site — Overview hides ceilings, toggles roof and basement.
 - Owner asked for high quality always (ambient occlusion + 4096 shadows on every device, no toggle) and a round "?"
@@ -98,7 +99,8 @@ A walk-through 3D model of the owner's house, viewable in a web browser on lapto
 - `python3 pipeline/mktest.py site/index.html <dir>/index.html` writes a copy that loads three.js from `./lib/`
   (copy `node_modules/three/build/three.module.min.js` → `lib/`, `examples/jsm` → `lib/jsm`; `npm i three@0.170.0`).
   Serve that dir on :8765 (with house.json and tex/) and run `node tests/walktest.js` (stairs, doors, patio, garage),
-  `node tests/pits.js` (trap scan), `node tests/coplanar.js` (surfaces sharing a plane = flicker; what remains
+  `node tests/pits.js` (trap scan), `node tests/doors.js` (every door, both ways), `node tests/jambs.js` (closest approach to any wall, must stay
+  > ~5"), `node tests/coplanar.js` (surfaces sharing a plane = flicker; what remains
   after the stair fix is hidden inside walls/behind cabinets/underground — re-run after adding geometry), `node tests/shoot2.js <outdir> '<views json>'` (screenshots).
   Headless Chromium uses SwiftShader; it is slow but works. Not yet tested on a real phone.
 
@@ -115,6 +117,9 @@ A walk-through 3D model of the owner's house, viewable in a web browser on lapto
   reveals → risers stop under the tread above; walls/slabs have no bottom faces; tile sits on the true wall faces;
   exterior trim laps 1/2" into openings. The family-room firebox was hidden inside the plan's 4" firebox wall → moved
   to its face. Rule: never put two faces on the same plane facing the same way.
+- Could walk into a wall at doorways (8-point collision ring let jambs slip within ~1" of the camera) → 24-point ring.
+- Garage back door threshold was at house-floor height (blocked) → thresholds use the higher of the two floors they
+  join. The hall closet over the lower stair was solid at main level → normal floor.
 
 ## Next steps
 - Owner's photos → real finishes and furniture; then the 2–3-way room comparison (baked lighting / live / scan).
