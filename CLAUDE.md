@@ -93,6 +93,8 @@ A walk-through 3D model of the owner's house, viewable in a web browser on lapto
 - Layers: main, ceil, roof, bsmt, bceil, site — Overview hides ceilings, toggles roof and basement.
 - Owner asked for high quality always (ambient occlusion + 4096 shadows on every device, no toggle) and a round "?"
   button for the What's-real sheet.
+- Phones: while walking, the joystick sits bottom-left and the controls stack compactly on the right (`body.joyon`), so
+  nothing covers the joystick (owner reported the old centered bar covered it). Overview uses the centered bar.
 - `window.__view` / `window.__dbg` exist for automated screenshots and walk tests.
 
 ## Testing

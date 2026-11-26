@@ -44,6 +44,20 @@ input[type=range]{width:110px;accent-color:var(--accent)}
 #sheet .close{float:right}
 #load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);color:var(--ink-soft);font:500 14px var(--f-ui);transition:opacity .5s}
 @media (max-width:560px){input[type=range]{width:80px}.sub{display:none}}
+/* Phones: smaller controls; while walking, the joystick sits bottom-left and the controls stack on the right so they never cover it */
+@media (max-width:560px),(pointer:coarse){
+  .bar .chip{padding:4px;gap:4px;border-radius:11px}
+  button,select{font-size:12px;padding:5px 9px;min-height:32px}
+  label.time{gap:5px;padding:0 4px}
+  .time b{min-width:46px}
+}
+body.joyon #joy{bottom:calc(env(safe-area-inset-bottom,0px) + 14px)}
+body.joyon .bar{left:auto;width:min(250px,calc(100vw - 164px));flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:6px}
+body.joyon .bar .chip{box-sizing:border-box;width:100%}
+body.joyon .bar .chip button{flex:1;padding-left:4px;padding-right:4px}
+body.joyon .bar select{width:100%;max-width:none}
+body.joyon label.time{flex:1;min-width:0}
+body.joyon input[type=range]{flex:1;width:auto;min-width:0}
 @media (prefers-reduced-motion:reduce){#hint,#load{transition:none}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600&display=swap">
@@ -641,7 +655,7 @@ let showRoof=false, showBsmt=false; // showIdeas is declared with the ideas sect
 function applyLayers(){const w=mode==='walk';
   layers.main.forEach(x=>x.visible=w||!showBsmt); layers.ceil.forEach(x=>x.visible=w); layers.bceil.forEach(x=>x.visible=w);
   layers.roof.forEach(x=>x.visible=w||(showRoof&&!showBsmt)); layers.bsmt.forEach(x=>x.visible=true); layers.site.forEach(x=>x.visible=true); layers.idea.forEach(x=>x.visible=showIdeas&&(w||!showBsmt))}
-function setMode(m){mode=m;bW.setAttribute('aria-pressed',m==='walk');bO.setAttribute('aria-pressed',m==='over');orbit.enabled=m==='over';bR.hidden=m!=='over';bBs.hidden=m!=='over';joyEl.hidden=!(isTouch&&m==='walk');
+function setMode(m){mode=m;bW.setAttribute('aria-pressed',m==='walk');bO.setAttribute('aria-pressed',m==='over');orbit.enabled=m==='over';bR.hidden=m!=='over';bBs.hidden=m!=='over';joyEl.hidden=!(isTouch&&m==='walk');document.body.classList.toggle('joyon',isTouch&&m==='walk');
   applyLayers(); camera.fov=m==='walk'?72:45; camera.updateProjectionMatrix();
   setSun(+tod.value);
   if(m==='over'){camera.position.copy(V(150,700,1450));orbit.target.copy(V(513,0,360));orbit.update()} }
