@@ -1,0 +1,9 @@
+build/
+node_modules/
+__pycache__/
+*.pyc
+_site/
+# private: never publish the plans or photos
+source/plans/*
+source/photos/*
+!source/**/README.md
