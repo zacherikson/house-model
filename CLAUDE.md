@@ -36,7 +36,7 @@ A walk-through 3D model of the owner's house, viewable in a web browser on lapto
 ## Current state (as of 2026-11-26)
 - Main floor + basement + exterior built **from plans only**. No photos received yet. All finishes are placeholders and
   the page says so ("What's real?" sheet lists from-plans / assumed / placeholder).
-- No furniture, interior doors, mirrors or light fixtures yet.
+- No real furniture, interior doors, mirrors or light fixtures yet (owner has no furniture planned; ideas are being added).
 - **This repo is public. Never commit the plans PDF, photos, the address, lot/subdivision, client or builder names.**
   The plans PDF (`source/plans/plans-review-set-2026-06-02.pdf`) and photos (`source/photos/`) are gitignored; if they
   are not on disk, ask the owner to upload them (or keep them in a private place such as a Google Drive folder).
@@ -120,6 +120,10 @@ A walk-through 3D model of the owner's house, viewable in a web browser on lapto
 - Could walk into a wall at doorways (8-point collision ring let jambs slip within ~1" of the camera) → 24-point ring.
 - Garage back door threshold was at house-floor height (blocked) → thresholds use the higher of the two floors they
   join. The hall closet over the lower stair was solid at main level → normal floor.
+
+## Ideas so far (not real)
+- `ideas/2026-11-grand-piano/` — 6' grand in the office, lid open toward the entry (code in the IDEAS section of
+  `site/index.html`; collision in `G.ideaBlock`, only active while ideas are shown).
 
 ## Next steps
 - Owner's photos → real finishes and furniture; then the 2–3-way room comparison (baked lighting / live / scan).

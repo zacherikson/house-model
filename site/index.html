@@ -4,7 +4,7 @@
 /* Layout: full-screen 3D canvas, floating glass controls along the bottom, a slide-up info sheet */
 :root{
   --ink:#1f2328; --ink-soft:#5b6470; --panel:rgba(250,249,246,.88); --line:rgba(31,35,40,.12);
-  --accent:#2f6f5e; --accent-ink:#ffffff; --bg:#cfd8dd; --warn:#9a5b13;
+  --accent:#2f6f5e; --accent-ink:#ffffff; --bg:#cfd8dd; --warn:#9a5b13; --idea:#e9b949;
   --f-ui:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-head:"Space Grotesk","Inter",system-ui,sans-serif;
 }
@@ -26,6 +26,7 @@ body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-ui);-webkit-us
 .bar .chip{display:flex;gap:6px;align-items:center;padding:6px}
 button,select{font:500 13px var(--f-ui);color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:7px 11px;cursor:pointer;min-height:34px}
 #infoBtn{width:40px;height:40px;padding:0;font:600 17px var(--f-head);border-radius:50%}
+#ideaBtn[aria-pressed="true"]{background:var(--idea);color:#1d1400;border-color:transparent}
 button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 select{max-width:46vw}
@@ -59,6 +60,7 @@ input[type=range]{width:110px;accent-color:var(--accent)}
     <button id="mOver" aria-pressed="false">Overview</button>
     <button id="roofBtn" aria-pressed="false" hidden>Roof</button>
     <button id="bsmtBtn" aria-pressed="false" hidden>Basement</button>
+    <button id="ideaBtn" aria-pressed="true" title="Show or hide design ideas (not part of the real house)">Ideas</button>
   </div>
   <div class="chip"><select id="rooms" aria-label="Go to room"></select></div>
   <div class="chip"><label class="time" for="tod">Sun <input id="tod" type="range" min="7" max="17.5" step="0.25" value="13"><b id="todv">1:00 pm</b></label></div>
@@ -86,6 +88,11 @@ input[type=range]{width:110px;accent-color:var(--accent)}
     <li>Roof shape simplified from the birdseye sheet; dormers left off.</li>
     <li>Back patio size, porch posts, and the shoe shelves in the garage are read from small marks on the plan.</li>
     <li>Upper kitchen cabinets on the walls where the plan shows dashed lines.</li>
+  </ul>
+  <h3>Ideas — not part of the real house</h3>
+  <ul>
+    <li><b>Grand piano in the office</b> (the room to the right as you walk in). A 6-foot grand, 73" × 59", lid open, with bench.
+      Built to real measurements; not a specific brand's model. Switch all ideas off with the yellow <b>Ideas</b> button.</li>
   </ul>
   <h3>Placeholders — not your real finishes</h3>
   <ul>
@@ -462,13 +469,89 @@ roof(835,190,1002,643.5,'y',['hip','hip']);
 roof(248,517,349,595,'y',['gable','gable'],{plate:112,o:8});
 {const y0=517,y1=595,h0=118,h1=118-(y1-y0)*3/12; quad('shingle',V(24,h0,y0),V(24,h1,y1),V(248,h1,y1),V(248,h0,y0),'roof'); quad('soffit',V(248,h0-4,y0),V(248,h1-4,y1),V(24,h1-4,y1),V(24,h0-4,y0),'roof'); box('trim',24,y1-1,248,y1,h1-10,h1,{layer:'roof'})}
 
+
+// =====================================================================================
+// IDEAS — proposals, NOT the real house. Kept on their own layer ("Ideas" button) and their
+// own collision grid so switching them off leaves the real model untouched. See ideas/README.md.
+// =====================================================================================
+let showIdeas=true; const ideaObjects=[]; G.ideaBlock=new Uint8Array(G.w*G.h);
+const ideaSolid=(x0,y0,x1,y1)=>gRect(G.ideaBlock,x0,y0,x1,y1,1);
+const lacquer=new THREE.MeshStandardMaterial({color:0x040405,roughness:.14,metalness:0,envMapIntensity:.7,side:THREE.DoubleSide}); // polished black
+const ivory=new THREE.MeshStandardMaterial({color:0xf3efe6,roughness:.28}), ebony=new THREE.MeshStandardMaterial({color:0x0d0d0e,roughness:.35});
+const brass=new THREE.MeshStandardMaterial({color:0xc9a24a,metalness:1,roughness:.28});
+const plateTex=canvasTex(512,512,(g,w,h)=>{g.fillStyle='#b8913c';g.fillRect(0,0,w,h);for(let i=0;i<w;i+=5){g.fillStyle=i%15?'rgba(235,225,200,.55)':'rgba(120,90,40,.5)';g.fillRect(i,0,1.4,h)}noise(g,w,h,.05,8000)},{rep:1/40});
+const plate=new THREE.MeshStandardMaterial({map:plateTex,metalness:.75,roughness:.35,side:THREE.DoubleSide,envMapIntensity:.6});
+const spruce=new THREE.MeshStandardMaterial({color:0xd7b377,roughness:.6,side:THREE.DoubleSide}), felt=new THREE.MeshStandardMaterial({color:0x6e1414,roughness:1});
+const leather=new THREE.MeshStandardMaterial({color:0x121212,roughness:.55});
+// A 6' grand (73" long, 58.7" wide, case top 39.4"), built in inches; treble side runs toward -X.
+function grandPiano(){
+  const L=73,W=58.7,top=39.4,bottom=24.5,g=new THREE.Group();
+  const sh=new THREE.Shape(); const P2=(u,v)=>[-u,v];
+  sh.moveTo(...P2(0,0)); sh.lineTo(...P2(W,0)); sh.lineTo(...P2(W,22));
+  sh.bezierCurveTo(...P2(W,40),...P2(38,44),...P2(30,58)); sh.bezierCurveTo(...P2(22,68),...P2(15,73),...P2(8,73));
+  sh.quadraticCurveTo(...P2(0,73),...P2(0,68)); sh.lineTo(...P2(0,0));
+  const pts=sh.getSpacedPoints(180); pts.pop();
+  let area=0; for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];area+=a.x*b.y-b.x*a.y}
+  const offset=d=>pts.map((p,i)=>{const a=pts[(i-1+pts.length)%pts.length],b=pts[(i+1)%pts.length];let nx=-(b.y-a.y),ny=b.x-a.x;const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;const sgn=area>0?-1:1;return new THREE.Vector2(p.x-nx*d*sgn,p.y-ny*d*sgn)});
+  const flat=(shape,h0,h1,mat)=>{const geo=new THREE.ExtrudeGeometry(shape,{depth:h1-h0,bevelEnabled:false,curveSegments:48});geo.rotateX(Math.PI/2);geo.translate(0,h1,0);const m=new THREE.Mesh(geo,mat);m.castShadow=m.receiveShadow=true;g.add(m);return m};
+  // rim (with the inside hollowed out), case bottom, soundboard, iron plate with strings
+  // rim built directly as walls + a top ring (outline is in the XZ plane, v→+Z)
+  const inner=offset(1.6), posA=[];
+  const q=(a,b,c,d)=>posA.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,a.x,a.y,a.z,c.x,c.y,c.z,d.x,d.y,d.z);
+  const V3=(p,h)=>new THREE.Vector3(p.x,h,p.y);
+  for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;
+    q(V3(pts[i],bottom),V3(pts[j],bottom),V3(pts[j],top),V3(pts[i],top));     // outer wall
+    q(V3(inner[i],bottom),V3(inner[i],top),V3(inner[j],top),V3(inner[j],bottom)); // inner wall
+    q(V3(pts[i],top),V3(pts[j],top),V3(inner[j],top),V3(inner[i],top));       // top edge
+  }
+  const rg=new THREE.BufferGeometry(); rg.setAttribute('position',new THREE.Float32BufferAttribute(posA,3)); rg.computeVertexNormals();
+  const rimM=new THREE.Mesh(rg,lacquer); rimM.castShadow=rimM.receiveShadow=true; g.add(rimM);
+  const sheet=(poly,h,mat)=>{const geo=new THREE.ShapeGeometry(new THREE.Shape(poly),48);geo.rotateX(Math.PI/2);geo.translate(0,h,0);const m=new THREE.Mesh(geo,mat);m.receiveShadow=true;m.castShadow=true;g.add(m);return m};
+  sheet(pts,bottom,lacquer); sheet(inner,32.5,spruce); sheet(offset(4),34,plate);
+  for(let i=0;i<5;i++) flat(new THREE.Shape([[-6-i*9.4,2],[-6-i*9.4-1.2,2],[-6-i*9.4-2.6,34-i*2],[-6-i*9.4-1.4,34-i*2]].map(p=>new THREE.Vector2(...p))),34.4,35.4,plate);
+  // lid at full stick, hinged on the straight (bass) side
+  const lidG=new THREE.Group(); lidG.position.set(0,top+.1,0);
+  const lidGeo=new THREE.ExtrudeGeometry(new THREE.Shape(pts),{depth:.8,bevelEnabled:false,curveSegments:48}); lidGeo.rotateX(Math.PI/2); lidGeo.translate(0,.8,0);
+  const lid=new THREE.Mesh(lidGeo,lacquer); lid.castShadow=lid.receiveShadow=true; lidG.add(lid); const th=36*Math.PI/180; lidG.rotation.z=-th; g.add(lidG);
+  const b=50, z=34, base=new THREE.Vector3(-b,top,z), tipLocal=new THREE.Vector3(-b*Math.cos(th),top+.1+b*Math.sin(th),z);
+  const stickLen=base.distanceTo(tipLocal), stick=new THREE.Mesh(new THREE.CylinderGeometry(.45,.45,stickLen,10),lacquer);
+  stick.position.copy(base.clone().add(tipLocal).multiplyScalar(.5)); stick.lookAt(tipLocal); stick.rotateX(Math.PI/2); stick.castShadow=true; g.add(stick);
+  // keyboard: 88 keys (52 white), key tops at 28.5"
+  const ky=28.5, kw=47.1/52, kx0=-5.8, front=-5.6;
+  const box=(w,h,d,x,y,z0,mat)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z0);m.castShadow=m.receiveShadow=true;g.add(m);return m};
+  const names='ABCDEFG'; let white=0;
+  for(let i=0;i<52;i++){const x=kx0-(i+.5)*kw; box(kw-.06,.9,6,x,ky-.45,front+3,ivory);
+    const n=names[i%7]; if(i<51&&'ACDFG'.includes(n)) box(kw*.55,.5,3.8,kx0-(i+1)*kw,ky+.25,front+1.9+2.2,ebony);}
+  box(47.2,.25,.6,kx0-23.6,ky-.2,front+6.1,felt);
+  box(48.5,2.6,.8,kx0-23.6,ky-2.2,front-.2,lacquer);                        // key slip
+  box(48.5,3,6.8,kx0-23.6,ky-3.6,front+3,lacquer);                          // key bed
+  for(const cx of [-2.9,-W+2.9]) box(5.8,6.5,7.2,cx,ky-1.3,front+3.4,lacquer); // cheek blocks
+  box(47.2,4.6,1.2,kx0-23.6,ky+2.6,1.4,lacquer);                            // fallboard (open)
+  const desk=box(26,10.5,.7,-W/2+2,top+5.6,6.5,lacquer); desk.rotation.x=-.2; // music desk
+  // legs with brass casters, pedal lyre with three pedals
+  for(const [lx,lz] of [[-3.5,1.5],[-W+3.5,1.5],[-8,64]]){box(4.2,bottom-3,4.2,lx,(bottom-3)/2+3,lz,lacquer);
+    const c=new THREE.Mesh(new THREE.SphereGeometry(1.4,12,8),brass);c.position.set(lx,1.4,lz);g.add(c)}
+  for(const dx of [-3,3]) box(1.4,bottom-3,1.4,-W/2+2+dx,(bottom-3)/2+3,4,lacquer);
+  box(10,3,4.5,-W/2+2,1.8,4.2,lacquer); for(const dx of [-2.6,0,2.6]) box(1,.5,3.6,-W/2+2+dx,2.2,1.8,brass);
+  // bench (tufted leather top)
+  const bz=-21; box(30,1.2,14,-W/2+2,18.6,bz,lacquer); box(29,1.6,13,-W/2+2,20,bz,leather);
+  for(const [x,z2] of [[-13.5,-6],[13.5,-6],[-13.5,6],[13.5,6]]) box(1.6,18,1.6,-W/2+2+x,9,bz+z2,lacquer);
+  return g;
+}
+{ // placed in the office (the room to the right of the entry): keyboard faces the front window, open lid faces the entry
+  const pg=grandPiano(), px=500, py=404; pg.scale.setScalar(IN); pg.position.copy(V(px,0,py)); pg.userData.layer='idea';
+  pg.traverse(m=>{m.userData.layer='idea'}); ideaObjects.push(pg);
+  ideaSolid(px-58.7,py-6,px,py+50); ideaSolid(px-40,py+50,px,py+73); ideaSolid(px-27.35-15,py-28,px-27.35+15,py-14); // bench
+}
+
 // ---------- assemble meshes ----------
-const layers={main:[],ceil:[],roof:[],bsmt:[],bceil:[],site:[]};
+const layers={main:[],ceil:[],roof:[],bsmt:[],bceil:[],site:[],idea:[]};
 for(const k in B){const b=B[k];const g=new THREE.BufferGeometry();
   g.setAttribute('position',new THREE.Float32BufferAttribute(b.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(b.n,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(b.u,2));
   const m=new THREE.Mesh(g,M[b.m]); m.castShadow=b.m!=='glass'; m.receiveShadow=true; if(b.m==='glass') m.renderOrder=2;
   scene.add(m); layers[b.layer].push(m);}
 for(const e of extra){scene.add(e); (layers[e.userData.layer||'main']).push(e)}
+for(const e of ideaObjects){scene.add(e); layers.idea.push(e)}
 
 // ---------- sky, sun, environment ----------
 const sky=new Sky(); sky.scale.setScalar(2000); scene.add(sky);
@@ -509,7 +592,7 @@ buildComposer(); // ambient occlusion + 4K shadows on every device
 const orbit=new OrbitControls(camera,canvas); orbit.enabled=false; orbit.target.copy(V(513,0,380)); orbit.maxPolarAngle=1.45; orbit.minDistance=4; orbit.maxDistance=90; orbit.enableDamping=true;
 const P={x:306,y:470,floor:0,eye:EYE,yaw:0,pitch:0,level:'M',stuck:0};
 const spots=[
-  ['Front porch',306,560,306,300],['Entry',330,494,120,330],['Kitchen',200,215,90,55],['Dining',225,190,60,290],['Family room',235,330,40,420],['Office',380,395,520,470],
+  ['Front porch',306,560,306,300],['Entry',330,494,120,330],['Kitchen',200,215,90,55],['Dining',225,190,60,290],['Family room',235,330,40,420],['Office (piano idea)',372,470,470,420],
   ['Hall bath',330,392,262,400],['Pantry',290,250,335,140],['Bedroom 2',500,250,380,150],['Primary bedroom',560,165,690,60],['Primary bath',735,100,840,60],
   ['Walk-in closet',690,250,620,205],['Mudroom & laundry',650,345,780,320],['Garage',620,430,820,650],['Back patio',390,85,390,300],['Front yard',380,1180,480,450],['Back yard',420,-420,430,250],
   ['Basement family room',650,250,660,40,'B'],['Gym',300,200,440,150,'B'],['Basement bedroom (back)',160,150,150,30,'B'],['Basement bedroom (front)',150,445,30,420,'B'],
@@ -533,7 +616,7 @@ function joyMove(e){const r=joyEl.getBoundingClientRect();let x=(e.clientX-r.lef
 // a step up of more than 10" blocks you, unless you've been stuck for a moment (then you can climb out)
 // body = 10" radius: 16 points on the outer ring (gaps under 4", so a door jamb can't slip between them), 8 inside, plus the centre
 const RING=[[0,0]];for(let k=0;k<16;k++)RING.push([Math.cos(k*Math.PI/8)*10,Math.sin(k*Math.PI/8)*10]);for(let k=0;k<8;k++)RING.push([Math.cos(k*Math.PI/4+.39)*5,Math.sin(k*Math.PI/4+.39)*5]);
-function blocked(x,y,floor,lim){const g=P.level==='B'?GB:G;for(let k=0;k<RING.length;k++){const i=gIdx(x+RING[k][0],y+RING[k][1]);if(i<0)return true;if(g.block[i])return true;if(g.floor[i]<-500||g.floor[i]-floor>(k===0?lim:lim+8))return true}return false}
+function blocked(x,y,floor,lim){const g=P.level==='B'?GB:G;for(let k=0;k<RING.length;k++){const i=gIdx(x+RING[k][0],y+RING[k][1]);if(i<0)return true;if(g.block[i])return true;if(showIdeas&&g.ideaBlock&&g.ideaBlock[i])return true;if(g.floor[i]<-500||g.floor[i]-floor>(k===0?lim:lim+8))return true}return false}
 function stepWalk(dt){
   let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-joy.y, s=(keys.KeyD?1:0)-(keys.KeyA?1:0)+joy.x;
   const turn=(keys.ArrowLeft?1:0)-(keys.ArrowRight?1:0); P.yaw+=turn*dt*1.8;
@@ -554,10 +637,10 @@ const hint=document.getElementById('hint');
 hint.innerHTML=isTouch?'Left circle: walk.<br>Drag anywhere else: look around.':'W A S D or arrow keys: walk. Shift: faster.<br>Drag with the mouse: look around.';
 let hintT=setTimeout(hideHint,7000); function hideHint(){hint.style.opacity=0;clearTimeout(hintT)}
 const bW=document.getElementById('mWalk'),bO=document.getElementById('mOver'),bR=document.getElementById('roofBtn'),bBs=document.getElementById('bsmtBtn');
-let showRoof=false, showBsmt=false;
+let showRoof=false, showBsmt=false; // showIdeas is declared with the ideas section
 function applyLayers(){const w=mode==='walk';
   layers.main.forEach(x=>x.visible=w||!showBsmt); layers.ceil.forEach(x=>x.visible=w); layers.bceil.forEach(x=>x.visible=w);
-  layers.roof.forEach(x=>x.visible=w||(showRoof&&!showBsmt)); layers.bsmt.forEach(x=>x.visible=true); layers.site.forEach(x=>x.visible=true)}
+  layers.roof.forEach(x=>x.visible=w||(showRoof&&!showBsmt)); layers.bsmt.forEach(x=>x.visible=true); layers.site.forEach(x=>x.visible=true); layers.idea.forEach(x=>x.visible=showIdeas&&(w||!showBsmt))}
 function setMode(m){mode=m;bW.setAttribute('aria-pressed',m==='walk');bO.setAttribute('aria-pressed',m==='over');orbit.enabled=m==='over';bR.hidden=m!=='over';bBs.hidden=m!=='over';joyEl.hidden=!(isTouch&&m==='walk');
   applyLayers(); camera.fov=m==='walk'?72:45; camera.updateProjectionMatrix();
   setSun(+tod.value);
@@ -565,6 +648,7 @@ function setMode(m){mode=m;bW.setAttribute('aria-pressed',m==='walk');bO.setAttr
 bW.onclick=()=>setMode('walk'); bO.onclick=()=>setMode('over');
 bR.onclick=()=>{showRoof=!showRoof;bR.setAttribute('aria-pressed',showRoof);applyLayers()};
 bBs.onclick=()=>{showBsmt=!showBsmt;bBs.setAttribute('aria-pressed',showBsmt);applyLayers()};
+const bI=document.getElementById('ideaBtn'); bI.onclick=()=>{showIdeas=!showIdeas;bI.setAttribute('aria-pressed',showIdeas);applyLayers()};
 const tod=document.getElementById('tod'),todv=document.getElementById('todv');
 const fmt=h=>{const hh=Math.floor(h),mm=Math.round((h-hh)*60);return `${(hh+11)%12+1}:${String(mm).padStart(2,'0')} ${hh<12?'am':'pm'}`};
 tod.oninput=()=>{todv.textContent=fmt(+tod.value);setSun(+tod.value)};
